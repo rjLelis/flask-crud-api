@@ -59,7 +59,7 @@ def add_user():
 @app.route('/user', methods=['GET'])
 def get_users():
     all_users = User.query.all()
-    return users_schema.jsonify(all_users)
+    return users_schema.jsonify(all_users), 200
 
 
 @app.route('/user/<int:id>', methods=['GET'])
@@ -68,7 +68,7 @@ def user_detail(id):
 
     if user is None:
         return jsonify(message=f'User not found with id {id}'), 404
-    return user_schema.jsonify(user)
+    return user_schema.jsonify(user), 200
 
 
 @app.route('/user/<int:id>', methods=['PUT'])
@@ -84,9 +84,9 @@ def user_update(id):
     try:
         db.session.commit()
     except db_exceptions.IntegrityError:
-        return jsonify(message='username or email already stored')
+        return jsonify(message='username or email already stored'), 409
 
-    return user_schema.jsonify(user)
+    return user_schema.jsonify(user), 200
 
 
 @app.route('/user/<int:id>', methods=['DELETE'])
