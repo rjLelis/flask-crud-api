@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
-import os
 from flask_cors import CORS
+import os
+import sqlalchemy.exc as db_exceptions
 
+app = Flask(__name__)
 
 cors = CORS(app, resources={
     r"/user/*": {
@@ -11,7 +13,6 @@ cors = CORS(app, resources={
     }
 })
 
-app = Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + \
     os.path.join(basedir, 'crud.sqlite')
@@ -46,8 +47,11 @@ def add_user():
 
     new_user = User(username, email)
 
-    db.session.add(new_user)
-    db.session.commit()
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+    except db_exceptions.IntegrityError as e:
+        return jsonify(message='username or email already stored'), 409
 
     return user_schema.jsonify(new_user), 201
 
@@ -61,16 +65,26 @@ def get_users():
 @app.route('/user/<int:id>', methods=['GET'])
 def user_detail(id):
     user = User.query.get(id)
+
+    if user is None:
+        return jsonify(message=f'User not found with id {id}'), 404
     return user_schema.jsonify(user)
 
 
 @app.route('/user/<int:id>', methods=['PUT'])
 def user_update(id):
     user = User.query.get(id)
+
+    if user is None:
+        return jsonify(message=f'User not found with id {id}'), 404
+
     user.username = request.json['username']
     user.email = request.json['email']
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except db_exceptions.IntegrityError:
+        return jsonify(message='username or email already stored')
 
     return user_schema.jsonify(user)
 
@@ -78,6 +92,10 @@ def user_update(id):
 @app.route('/user/<int:id>', methods=['DELETE'])
 def user_delete(id):
     user = User.query.get(id)
+
+    if user is None:
+        return jsonify(message=f'User not found with id {id}'), 404
+
     db.session.delete(user)
     db.session.commit()
 
